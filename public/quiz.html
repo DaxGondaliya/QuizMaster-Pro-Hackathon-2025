@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz - QuizMaster Pro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .quiz-container {
+            padding-top: 100px;
+            padding-bottom: 50px;
+        }
+        
+        .timer-card {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 1000;
+            min-width: 200px;
+        }
+        
+        .timer-warning {
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .question-card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .option-btn {
+            text-align: left;
+            margin-bottom: 10px;
+            border: 2px solid #e9ecef;
+            background: white;
+            color: #333;
+            padding: 15px 20px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .option-btn:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .option-btn.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-custom {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            padding: 12px 30px;
+        }
+        
+        .btn-custom:hover {
+            background: linear-gradient(45deg, #764ba2, #667eea);
+            color: white;
+        }
+        
+        .progress-custom {
+            height: 10px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .progress-bar-custom {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+        
+        .quiz-header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .results-modal .modal-content {
+            border: none;
+            border-radius: 15px;
+        }
+        
+        .correct-answer {
+            background: #d4edda !important;
+            border-color: #c3e6cb !important;
+        }
+        
+        .incorrect-answer {
+            background: #f8d7da !important;
+            border-color: #f5c6cb !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Timer Card -->
+    <div class="timer-card">
+        <div class="card" id="timerCard">
+            <div class="card-body text-center">
+                <h4 class="card-title">
+                    <i class="fas fa-clock text-primary"></i>
+                </h4>
+                <h2 id="timer" class="text-primary mb-0">--:--</h2>
+                <small class="text-muted">Time Remaining</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="quiz-container">
+        <div class="container">
+            <!-- Quiz Header -->
+            <div class="quiz-header" id="quizHeader" style="display: none;">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h2 id="quizTitle" class="mb-2"></h2>
+                        <p id="quizDescription" class="text-muted mb-3"></p>
+                        <div class="d-flex align-items-center gap-3">
+                            <small class="text-muted">
+                                <i class="fas fa-star me-1"></i>
+                                Total Points: <span id="totalPoints"></span>
+                            </small>
+                            <small class="text-muted">
+                                <i class="fas fa-list me-1"></i>
+                                Questions: <span id="totalQuestions"></span>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <h4 class="text-primary">Progress</h4>
+                        <div class="progress progress-custom">
+                            <div class="progress-bar progress-bar-custom" id="progressBar" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">
+                            Question <span id="currentQuestion">1</span> of <span id="totalQuestionsCount">0</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="question-card" id="questionCard" style="display: none;">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-question-circle me-2"></i>
+                            Question <span id="questionNumber">1</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <h5 id="questionText" class="mb-4"></h5>
+                        <div id="optionsContainer">
+                            <!-- Options will be populated here -->
+                        </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <button class="btn btn-outline-secondary" id="prevBtn" onclick="previousQuestion()" disabled>
+                                <i class="fas fa-arrow-left me-2"></i>Previous
+                            </button>
+                            <button class="btn btn-custom" id="nextBtn" onclick="nextQuestion()">
+                                Next<i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading Screen -->
+            <div class="text-center" id="loadingScreen">
+                <div class="card question-card">
+                    <div class="card-body py-5">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h4 class="text-primary">Loading Quiz...</h4>
+                        <p class="text-muted">Please wait while we prepare your quiz.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Quiz Button -->
+            <div class="text-center" id="submitSection" style="display: none;">
+                <button class="btn btn-success btn-lg" onclick="submitQuiz()">
+                    <i class="fas fa-check me-2"></i>Submit Quiz
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div class="modal fade" id="resultsModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-poll me-2"></i>Quiz Results
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-4">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h3 id="finalScore" class="text-primary">0</h3>
+                                <p class="mb-0">Score</p>
+                            </div>
+                            <div class="col-md-4">
+                                <h3 id="finalPercentage" class="text-success">0%</h3>
+                                <p class="mb-0">Percentage</p>
+                            </div>
+                            <div class="col-md-4">
+                                <h3 id="timeSpent" class="text-info">0:00</h3>
+                                <p class="mb-0">Time Spent</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h5>Review Your Answers:</h5>
+                    <div id="answersReview">
+                        <!-- Answers review will be populated here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="/student" class="btn btn-primary">Back to Dashboard</a>
+                    <a href="/leaderboard" class="btn btn-success">View Leaderboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let quiz = null;
+        let currentQuestionIndex = 0;
+        let answers = [];
+        let timer = null;
+        let timeLeft = 0;
+        let startTime = Date.now();
+        let socket = null;
+        
+        // Check authentication
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        
+        if (!token || !user.id) {
+            alert('Please login to take the quiz');
+            window.location.href = '/';
+        }
+        
+        // Get quiz ID from URL
+        const quizId = window.location.pathname.split('/').pop();
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize Socket.IO
+            socket = io();
+            socket.emit('join-quiz', quizId);
+            
+            await loadQuiz();
+        });
+        
+        async function loadQuiz() {
+            try {
+                const response = await fetch(`/api/quiz/${quizId}`);
+                const data = await response.json();
+                
+                if (response.ok && data.quiz) {
+                    quiz = data.quiz;
+                    initializeQuiz();
+                } else {
+                    alert(data.error || 'Quiz not found');
+                    window.location.href = '/student';
+                }
+            } catch (error) {
+                console.error('Error loading quiz:', error);
+                alert('Error loading quiz');
+                window.location.href = '/student';
+            }
+        }
+        
+        function initializeQuiz() {
+            // Hide loading screen
+            document.getElementById('loadingScreen').style.display = 'none';
+            
+            // Show quiz components
+            document.getElementById('quizHeader').style.display = 'block';
+            document.getElementById('questionCard').style.display = 'block';
+            
+            // Set quiz information
+            document.getElementById('quizTitle').textContent = quiz.title;
+            document.getElementById('quizDescription').textContent = quiz.description || 'Complete all questions to the best of your ability.';
+            document.getElementById('totalPoints').textContent = quiz.totalPoints;
+            document.getElementById('totalQuestions').textContent = quiz.questions.length;
+            document.getElementById('totalQuestionsCount').textContent = quiz.questions.length;
+            
+            // Initialize answers array
+            answers = new Array(quiz.questions.length).fill(null);
+            
+            // Start timer
+            timeLeft = quiz.duration * 60; // Convert minutes to seconds
+            startTimer();
+            
+            // Display first question
+            displayQuestion(0);
+        }
+        
+        function startTimer() {
+            updateTimerDisplay();
+            
+            timer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                // Warning when 5 minutes left
+                if (timeLeft === 300) {
+                    document.getElementById('timerCard').classList.add('timer-warning');
+                    alert('Warning: Only 5 minutes remaining!');
+                }
+                
+                // Auto-submit when time runs out
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    alert('Time is up! Quiz will be submitted automatically.');
+                    submitQuiz();
+                }
+            }, 1000);
+        }
+        
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('timer').textContent = display;
+            
+            // Change color based on time remaining
+            const timerElement = document.getElementById('timer');
+            if (timeLeft <= 300) { // 5 minutes
+                timerElement.className = 'text-danger mb-0';
+            } else if (timeLeft <= 600) { // 10 minutes
+                timerElement.className = 'text-warning mb-0';
+            } else {
+                timerElement.className = 'text-primary mb-0';
+            }
+        }
+        
+        function displayQuestion(index) {
+            const question = quiz.questions[index];
+            currentQuestionIndex = index;
+            
+            // Update question display
+            document.getElementById('questionNumber').textContent = index + 1;
+            document.getElementById('questionText').textContent = question.question;
+            document.getElementById('currentQuestion').textContent = index + 1;
+            
+            // Update progress bar
+            const progress = ((index + 1) / quiz.questions.length) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+            
+            // Display options
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = question.options.map((option, optionIndex) => `
+                <button class="btn option-btn w-100" onclick="selectAnswer(${optionIndex})">
+                    <strong>${String.fromCharCode(65 + optionIndex)}.</strong> ${option}
+                </button>
+            `).join('');
+            
+            // Highlight previously selected answer
+            if (answers[index] !== null) {
+                highlightOption(answers[index]);
+            }
+            
+            // Update navigation buttons
+            document.getElementById('prevBtn').disabled = index === 0;
+            
+            const nextBtn = document.getElementById('nextBtn');
+            if (index === quiz.questions.length - 1) {
+                nextBtn.textContent = 'Review';
+                nextBtn.innerHTML = '<i class="fas fa-eye me-2"></i>Review';
+            } else {
+                nextBtn.innerHTML = 'Next<i class="fas fa-arrow-right ms-2"></i>';
+            }
+            
+            // Show submit section if on last question
+            if (index === quiz.questions.length - 1) {
+                document.getElementById('submitSection').style.display = 'block';
+            } else {
+                document.getElementById('submitSection').style.display = 'none';
+            }
+        }
+        
+        function selectAnswer(optionIndex) {
+            answers[currentQuestionIndex] = optionIndex;
+            highlightOption(optionIndex);
+        }
+        
+        function highlightOption(optionIndex) {
+            // Remove previous selection
+            document.querySelectorAll('.option-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Highlight selected option
+            const optionBtns = document.querySelectorAll('.option-btn');
+            if (optionBtns[optionIndex]) {
+                optionBtns[optionIndex].classList.add('selected');
+            }
+        }
+        
+        function previousQuestion() {
+            if (currentQuestionIndex > 0) {
+                displayQuestion(currentQuestionIndex - 1);
+            }
+        }
+        
+        function nextQuestion() {
+            if (currentQuestionIndex < quiz.questions.length - 1) {
+                displayQuestion(currentQuestionIndex + 1);
+            } else {
+                // Show review or submit
+                showReviewSummary();
+            }
+        }
+        
+        function showReviewSummary() {
+            const unanswered = answers.filter(answer => answer === null).length;
+            
+            if (unanswered > 0) {
+                if (confirm(`You have ${unanswered} unanswered question(s). Do you want to review them before submitting?`)) {
+                    // Find first unanswered question
+                    const firstUnanswered = answers.findIndex(answer => answer === null);
+                    displayQuestion(firstUnanswered);
+                    return;
+                }
+            }
+            
+            if (confirm('Are you ready to submit your quiz? This action cannot be undone.')) {
+                submitQuiz();
+            }
+        }
+        
+        async function submitQuiz() {
+            try {
+                clearInterval(timer);
+                
+                const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+                
+                // Prepare answers for submission
+                const submissionAnswers = answers.map(answer => ({
+                    selectedAnswer: answer
+                }));
+                
+                const response = await fetch(`/api/quiz/${quizId}/submit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        answers: submissionAnswers,
+                        timeSpent: timeSpent
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResults(data.results);
+                } else {
+                    alert(data.error || 'Error submitting quiz');
+                }
+            } catch (error) {
+                console.error('Error submitting quiz:', error);
+                alert('Error submitting quiz. Please try again.');
+            }
+        }
+        
+        function showResults(results) {
+            // Hide quiz interface
+            document.getElementById('timerCard').style.display = 'none';
+            document.getElementById('questionCard').style.display = 'none';
+            document.getElementById('submitSection').style.display = 'none';
+            
+            // Populate results
+            document.getElementById('finalScore').textContent = `${results.score}/${results.totalPoints}`;
+            document.getElementById('finalPercentage').textContent = results.percentage + '%';
+            
+            const timeSpentMinutes = Math.floor(results.timeSpent / 60);
+            const timeSpentSeconds = results.timeSpent % 60;
+            document.getElementById('timeSpent').textContent = `${timeSpentMinutes}:${timeSpentSeconds.toString().padStart(2, '0')}`;
+            
+            // Show detailed answers
+            const answersReview = document.getElementById('answersReview');
+            answersReview.innerHTML = results.answers.map((answer, index) => `
+                <div class="card mb-3 ${answer.isCorrect ? 'correct-answer' : 'incorrect-answer'}">
+                    <div class="card-header">
+                        <strong>Question ${index + 1}</strong>
+                        <span class="float-end">
+                            ${answer.isCorrect ? '<i class="fas fa-check text-success"></i>' : '<i class="fas fa-times text-danger"></i>'}
+                            ${answer.points} point(s)
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>${answer.question}</strong></p>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">Your Answer:</small><br>
+                                <strong class="${answer.isCorrect ? 'text-success' : 'text-danger'}">
+                                    ${String.fromCharCode(65 + answer.selectedAnswer)}. ${answer.options[answer.selectedAnswer]}
+                                </strong>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Correct Answer:</small><br>
+                                <strong class="text-success">
+                                    ${String.fromCharCode(65 + answer.correctAnswer)}. ${answer.options[answer.correctAnswer]}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Show results modal
+            const resultsModal = new bootstrap.Modal(document.getElementById('resultsModal'));
+            resultsModal.show();
+        }
+        
+        // Prevent accidental page leave
+        window.addEventListener('beforeunload', (e) => {
+            if (quiz && timer) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+        
+        // Handle browser back button
+        window.addEventListener('popstate', (e) => {
+            e.preventDefault();
+            if (confirm('Are you sure you want to leave the quiz? Your progress will be lost.')) {
+                if (timer) clearInterval(timer);
+                window.location.href = '/student';
+            } else {
+                history.pushState(null, null, window.location.pathname);
+            }
+        });
+        
+        // Push initial state
+        history.pushState(null, null, window.location.pathname);
+    </script>
+</body>
+</html>
